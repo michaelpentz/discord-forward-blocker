@@ -1,0 +1,6 @@
+{
+  "token": "YOUR_BOT_TOKEN_HERE",
+  "guild_id": 123456789012345678,
+  "protected_channels": [],
+  "mod_log_channel": null
+}

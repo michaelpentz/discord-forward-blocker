@@ -1,0 +1,14 @@
+# Bot config — contains your token and server ID, never commit this
+config.json
+
+# Logs
+bot.log
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+env/
