@@ -134,6 +134,13 @@ Add this line (adjust the path to your venv and script):
 @reboot sleep 30 && /path/to/venv/bin/python /path/to/bot.py >> /path/to/bot.log 2>&1
 ```
 
+**If you also run nightly `apt upgrade` via cron**, include `DEBIAN_FRONTEND=noninteractive` to prevent package upgrades from hanging on interactive prompts. Without it, certain upgrades will wait for user input indefinitely and freeze the system before the reboot can fire:
+
+```
+0 2 * * * DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive apt upgrade -y
+30 2 * * * /sbin/reboot
+```
+
 ---
 
 ## Project Structure
