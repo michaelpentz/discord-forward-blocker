@@ -14,15 +14,24 @@ from pathlib import Path
 
 CONFIG_PATH = Path(__file__).parent / "config.json"
 
+_config_cache: dict | None = None
 
-def load_config() -> dict:
-    with open(CONFIG_PATH) as f:
-        return json.load(f)
+
+def load_config(*, force_reload: bool = False) -> dict:
+    global _config_cache
+    if _config_cache is None or force_reload:
+        with open(CONFIG_PATH) as f:
+            _config_cache = json.load(f)
+    return _config_cache
 
 
 def save_config(config: dict) -> None:
-    with open(CONFIG_PATH, "w") as f:
+    global _config_cache
+    tmp = CONFIG_PATH.with_suffix(".tmp")
+    with open(tmp, "w") as f:
         json.dump(config, f, indent=2)
+    tmp.replace(CONFIG_PATH)
+    _config_cache = config
 
 
 # ── Bot Setup ─────────────────────────────────────────────────────────────────

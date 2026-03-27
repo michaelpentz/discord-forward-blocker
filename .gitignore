@@ -12,3 +12,7 @@ __pycache__/
 venv/
 .venv/
 env/
+
+# IDE/tool configs
+desktop.ini
+.DS_Store
