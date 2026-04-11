@@ -1,170 +1,63 @@
-# Discord Forward Blocker
+# message-policy-enforcer
 
-A lightweight Discord bot that silently deletes forwarded messages originating from protected channels and logs them to a designated mod channel.
+Event-driven message policy enforcement engine that intercepts, evaluates, and acts on messages in real time based on configurable channel protection rules. Deployed on Discord as the initial enforcement target.
 
-Discord doesn't natively prevent users from forwarding messages out of specific channels. This bot fills that gap — useful for media-only channels, announcement channels, or any channel where the content shouldn't be redistributed into general conversation threads.
+## Overview
 
----
+Organizations need to control how content flows between communication channels. This service monitors message events, detects policy violations (such as unauthorized forwarding from protected channels), and enforces rules automatically with full audit logging.
 
 ## How It Works
 
-When a user forwards a message from a protected channel into any other channel, the bot:
+1. **Event Interception**: Monitors all message creation events in real time
+2. **Policy Evaluation**: Checks message metadata against configured protection rules (source channel, message type, forwarding origin)
+3. **Enforcement**: Silently removes policy-violating messages
+4. **Audit Logging**: Posts structured log entries to a designated audit channel with user, source, destination, and content preview
 
-1. **Silently deletes** the forwarded message
-2. **Posts a log embed** to your designated mod channel
-
-```
-🗑️ Forward Blocked
-━━━━━━━━━━━━━━━━━━━━━━━
-  User     @username
-  From     #food (protected)
-  To       #general
-  Message  "check this out" 🖼️
-━━━━━━━━━━━━━━━━━━━━━━━
-  March 7, 2026 at 11:32 AM
-```
-
-Regular replies, non-forward messages, and forwards from unprotected channels pass through untouched.
-
----
+Non-violating messages pass through with zero processing overhead.
 
 ## Features
 
-- **Multi-channel protection** — protect as many channels as you need
-- **Slash commands** — configure entirely from within Discord, no SSH or file editing required
-- **Persistent config** — settings survive bot restarts
-- **Mod log embeds** — every blocked forward is logged with user, source, destination, and message preview
-- **Admin-only commands** — requires Administrator or Manage Server permission
-- **Safe by default** — ignores bots, DMs, and non-forward messages automatically
-- **discord.py 2.4+ forward detection** — uses `MessageReferenceType.forward` with an integer fallback for version safety
+- **Configurable channel protection**: Protect any number of source channels via runtime commands
+- **Runtime configuration**: All settings managed through slash commands (no SSH or file editing required)
+- **Persistent state**: Configuration survives service restarts (JSON-backed)
+- **Structured audit logs**: Every enforcement action logged with full context
+- **Permission-gated commands**: Administrative operations require elevated permissions
+- **Safe defaults**: Ignores bot messages, DMs, and non-forward events automatically
 
----
+## Technical Details
 
-## Requirements
+| Component | Detail |
+|-----------|--------|
+| Language | Python 3.10+ |
+| Framework | discord.py 2.4+ (MessageReferenceType.forward with integer fallback) |
+| Architecture | Event-driven, async. Zero CPU when idle. |
+| Configuration | JSON file, managed via slash commands at runtime |
+| Deployment | Single-file service (~260 lines), suitable for systemd or container deployment |
 
-- Python 3.10+
-- discord.py 2.4+
-- A Discord bot application with:
-  - **Message Content Intent** enabled
-  - Permissions: View Channels, Send Messages, Manage Messages, Embed Links, Read Message History
-  - Scopes: `bot`, `applications.commands`
+## Commands
 
----
+| Command | Description |
+|---------|-------------|
+| `/protect #channel` | Add a channel to the protection list |
+| `/unprotect #channel` | Remove a channel from the protection list |
+| `/setmodlog #channel` | Designate the audit log channel |
+| `/status` | Display current policy configuration |
+
+All commands require Administrator or Manage Server permissions and respond ephemerally.
 
 ## Setup
 
-**1. Clone the repo**
 ```bash
-git clone https://github.com/michaelpentz/discord-forward-blocker.git
-cd discord-forward-blocker
-```
-
-**2. Install dependencies**
-```bash
-# Using a virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate        # Linux/macOS
-venv\Scripts\activate           # Windows
-
+git clone https://github.com/michaelpentz/message-policy-enforcer.git
+cd message-policy-enforcer
 pip install -r requirements.txt
-```
-
-**3. Create your config**
-```bash
 cp config.example.json config.json
-```
-
-Edit `config.json`:
-```json
-{
-  "token": "YOUR_BOT_TOKEN_HERE",
-  "guild_id": 123456789012345678,
-  "protected_channels": [],
-  "mod_log_channel": null
-}
-```
-
-- `token` — your bot token from the [Discord Developer Portal](https://discord.com/developers/applications)
-- `guild_id` — your server's ID (right-click server name → Copy Server ID, requires Developer Mode)
-- `protected_channels` — leave empty; use `/protect` in Discord to add channels
-- `mod_log_channel` — leave null; use `/setmodlog` in Discord to set it
-
-**Lock down config permissions (important — your token is in here):**
-```bash
-chmod 600 config.json   # Linux/macOS
-```
-
-**4. Run the bot**
-```bash
+# Add credentials to config.json
 python bot.py
 ```
 
-Expected output:
-```
-2026-03-07 12:00:00 [INFO] Starting Forward Blocker...
-2026-03-07 12:00:01 [INFO] Forward Blocker ready — logged in as YourBot#0000 (ID: ...)
-2026-03-07 12:00:01 [INFO] Slash commands synced to guild ...
-```
-
----
-
-## Slash Commands
-
-All commands require **Administrator** or **Manage Server** permission and respond ephemerally (only visible to you).
-
-| Command | Description |
-|---|---|
-| `/protect #channel` | Add a channel to the protected list |
-| `/unprotect #channel` | Remove a channel from the protected list |
-| `/setmodlog #channel` | Set the mod log channel for deletion embeds |
-| `/status` | Show current config (protected channels + mod log) |
-
----
-
-## Persistent Hosting (Linux / Raspberry Pi)
-
-To keep the bot running after reboots, add a cron entry:
-
-```bash
-crontab -e
-```
-
-Add this line (adjust the path to your venv and script):
-```
-@reboot sleep 30 && /path/to/venv/bin/python /path/to/bot.py >> /path/to/bot.log 2>&1
-```
-
-**If you also run nightly `apt upgrade` via cron**, include `DEBIAN_FRONTEND=noninteractive` to prevent package upgrades from hanging on interactive prompts. Without it, certain upgrades will wait for user input indefinitely and freeze the system before the reboot can fire:
-
-```
-0 2 * * * DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive apt upgrade -y
-30 2 * * * /sbin/reboot
-```
-
----
-
-## Project Structure
-
-```
-discord-forward-blocker/
-├── bot.py                # Bot — single file, ~260 lines
-├── config.json           # Your config — gitignored, never committed
-├── config.example.json   # Template with placeholder values
-├── requirements.txt
-└── .gitignore
-```
-
----
-
-## Tech Stack
-
-- **Python 3.10+**
-- **discord.py 2.4+** — uses `MessageReferenceType.forward` and `message.snapshots` (added in discord.py 2.4 / Discord API 2024)
-- **JSON** — simple flat config, auto-managed by slash commands
-- Event-driven architecture — zero CPU usage when idle
-
----
+Configure channels via slash commands in the target server after the bot connects.
 
 ## License
 
-MIT
+MIT License. Copyright (c) 2026 Michael Pentz.
